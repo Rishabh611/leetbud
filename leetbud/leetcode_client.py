@@ -98,7 +98,7 @@ class LeetCodeClient:
 
         try:
             response = requests.get(url, headers=self.headers)
-            print(response)
+            # print(response)
 
             if response.status_code != 200:
                 return []

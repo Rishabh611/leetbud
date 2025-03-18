@@ -1,8 +1,14 @@
 import sys
 import os
-from leetbud.leetcode_client import LeetCodeClient
+import threading
+
 from openai import OpenAI
 from dotenv import load_dotenv
+
+from leetbud.leetcode_client import LeetCodeClient
+from leetbud.llm_client import LLMClient
+from leetbud.utils import loading_animation, format_response
+
 
 load_dotenv()
 
@@ -13,11 +19,17 @@ if not OPENAI_API_KEY:
     sys.exit(1)
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-MODEL = "gpt-3.5-turbo"
 
 
 def main():
     leetcode = LeetCodeClient()
+    llm_client = LLMClient()
+
+    print("Welcome to LeetBud!")
+    print("I'm your LeetBud assistant. I can help you solve LeetCode problems step by step.")
+
+    print("What problem would you like help with today?")
+    
     print("Enter problem name or number")
 
     problem_query = input("[Problem ID/Name]: ").strip()
@@ -33,57 +45,40 @@ def main():
             f"{problem['description']}\n\n"
             f"Test cases:\n{problem['test_cases']}\n\n"
         )
-        problem_title = problem['title']
 
         print(f"\nProblem {problem['id']}: {problem['title']} ({problem['difficulty']})\n")
-
-    messages = [
-        {"role": "system", "content": f"""
-        You are a helpful LeetCode buddy that helps users solve coding problems through guidance, not by giving away complete solutions.
-        
-        The user is working on this problem:
-        {problem_description}
-        
-        Your job is to:
-        - Help break down the problem
-        - Provide hints and guidance when asked
-        - Review code snippets and suggest improvements
-        - Identify optimization opportunities
-        - Never give the full solution upfront
-        - Be encouraging and supportive
-        - When giving feedback on code, be specific about what works well and what could be improved
-        """},
-        {"role": "assistant", "content": f"I'll help you solve the '{problem_title}' problem step by step. Let's break down the problem first. What's your initial understanding of the problem, and do you have any ideas on how to approach it?"}
-    ]
+        llm_client.setup_conversation(problem_description)
+    
 
     print("Let's it rip!!!")
 
     while True:
         user_input = input("[You]: ").strip()
 
-        if user_input.lower() in ['exit', 'quit', 'bye']:
+        if user_input.lower() in ['exit', 'quit']:
             print("Goodbye!")
             break
 
-        messages.append({"role": "user", "content": user_input})
-
         try:
-            print(f"Assistant is thinking")
-            response = client.chat.completions.create(
-                model = MODEL,
-                max_tokens = 1500,
-                messages = messages
-            )
+            stop_event = threading.Event()
+            t = threading.Thread(target=loading_animation, args=(stop_event,))
+            t.start()
 
-            assistant_response = response.choices[0].message.content
-            messages.append({"role": "assistant", "content": assistant_response})
+            assistant_response = llm_client.get_response(user_input)
 
-            sys.stdout.write("\033[F]")
-            sys.stdout.write("\033[K")
-            print(f"[Assistant]: {assistant_response}")
+            stop_event.set()
+            t.join()
 
-            if len(messages) > 10:
-                messages = [messages[0]] + messages[-10:]
+            sys.stdout.write("\033[F")  # Move cursor up one line
+            sys.stdout.write("\033[K")  # Clear the line
+            
+            # Add some spacing before the response
+            print("\n")
+            print(f"\033[94m[You]:\033[0m {user_input}")
+            print(f"\n{format_response(assistant_response)}\n")
+            
+            if len(llm_client.messages) > 10:
+                llm_client.messages = [llm_client.messages[0]] + llm_client.messages[-10:]
 
         except Exception as e:
             print(f"Error: {e}")

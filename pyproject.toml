@@ -1,0 +1,23 @@
+[project]
+name = "leetbud"
+version = "0.1.0"
+description = "A helper to assist you while solving Leetcode problems"
+authors = [
+    {name = "Rishabh",email = "rishabsinghrock@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openai (>=1.66.3,<2.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "requests (>=2.32.3,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+leetbud = "leetbud.main:main"
